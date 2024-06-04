@@ -34,7 +34,7 @@ VolcengineTos::ListedObjectV2 parseListedObjectV2_(const json& object) {
     if (object.contains("HashCrc64ecma")) {
         auto hashCrc_ = object.at("HashCrc64ecma").get<std::string>();
         if (!hashCrc_.empty()) {
-            lo.setHashCrc64Ecma(stoull(hashCrc_));
+            lo.setHashCrc64Ecma(atoll(hashCrc_.c_str()));
         }
     }
     return lo;

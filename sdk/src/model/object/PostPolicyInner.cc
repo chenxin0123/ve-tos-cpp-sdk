@@ -13,8 +13,8 @@ std::string VolcengineTos::PostPolicyInner::toJsonString() const {
             if (*condition.getAnOperator() == "content-length-range") {
                 nlohmann::json arrayJson;
                 arrayJson.emplace_back(*condition.getAnOperator());
-                arrayJson.emplace_back(stoll(condition.getKey()));
-                arrayJson.emplace_back(stoll(condition.getValue()));
+                arrayJson.emplace_back(atoll(condition.getKey().c_str()));
+                arrayJson.emplace_back(atoll(condition.getValue().c_str()));
                 jsonConditons.emplace_back(arrayJson);
             } else {
                 std::vector<std::string> temp = {*condition.getAnOperator(), condition.getKey(), condition.getValue()};

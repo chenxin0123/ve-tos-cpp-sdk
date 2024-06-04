@@ -10,24 +10,24 @@ public:
     ~EnvCredentials() override = default;
 
     Credential credential() override {
-        auto value = std::getenv("TOS_ACCESS_KEY");
+		//std::strin value = std::getenv("TOS_ACCESS_KEY");
         Credential cred(accessKey_, secretKey_, securityToken_);
 
-        if (value) {
-            cred.setAccessKeyId(value);
+		/*if (value) {
+			cred.setAccessKeyId(value);
 
-            value = std::getenv("TOS_SECRET_KEY");
+			value = std::getenv("TOS_SECRET_KEY");
 
-            if (value) {
-                cred.setAccessKeySecret(value);
-            }
+			if (value) {
+				cred.setAccessKeySecret(value);
+			}
 
-            value = std::getenv("TOS_SECURITY_TOKEN");
+			value = std::getenv("TOS_SECURITY_TOKEN");
 
-            if (value) {
-                cred.setSecurityToken(value);
-            }
-        }
+			if (value) {
+				cred.setSecurityToken(value);
+			}
+		}*/
 
         return {cred};
     }

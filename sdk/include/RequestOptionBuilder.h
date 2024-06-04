@@ -53,7 +53,7 @@ public:
         headers_[VolcengineTos::HEADER_CONTENT_SHA256] = contentSHA256;
     }
     void withExpires(const std::time_t& expires) {
-        headers_[http::HEADER_EXPIRES] = std::to_string(expires);
+        headers_[http::HEADER_EXPIRES] = TO_STRING(expires);
     }
     void withServerSideEncryptionCustomer(const std::string& ssecAlgorithm, const std::string& ssecKey,
                                           const std::string& ssecKeyMD5) {
@@ -71,10 +71,10 @@ public:
         headers_[VolcengineTos::HEADER_STORAGE_CLASS] = StorageClassTypetoString[storageClass];
     }
     void withIfModifiedSince(const std::time_t& since) {
-        headers_[http::HEADER_IF_MODIFIED_SINCE] = std::to_string(since);
+        headers_[http::HEADER_IF_MODIFIED_SINCE] = TO_STRING(since);
     }
     void withIfUnmodifiedSince(const std::time_t& since) {
-        headers_[http::HEADER_IF_UNMODIFIED_SINCE] = std::to_string(since);
+        headers_[http::HEADER_IF_UNMODIFIED_SINCE] = TO_STRING(since);
     }
     void withIfMatch(const std::string& ifMatch) {
         headers_[http::HEADER_IF_MATCH] = ifMatch;

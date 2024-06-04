@@ -43,6 +43,9 @@ namespace VolcengineTos {
 /* 64-bit CRC polynomial with these coefficients, but reversed:
     64, 62, 57, 55, 54, 53, 52, 47, 46, 45, 40, 39, 38, 37, 35, 33, 32,
     31, 29, 27, 24, 23, 22, 21, 19, 17, 13, 12, 10, 9, 7, 4, 1, 0 */
+#ifndef UINT64_C
+	#define UINT64_C(val) val ## ULL
+#endif
 #define POLY UINT64_C(0xc96c5795d7870f42)
 
 /* Tables for CRC calculation -- filled in by initialization functions that are

@@ -16,6 +16,8 @@ const wchar_t TOS_WPATH_DELIMITER = L'/';
 #endif
 #include <sys/stat.h>
 #include <set>
+#include "common/Common.h"
+
 namespace VolcengineTos {
 static const char base64_url_alphabet[] = {
         'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V',

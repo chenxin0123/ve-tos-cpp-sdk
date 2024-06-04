@@ -1,4 +1,6 @@
 #include "DefaultTransport.h"
+#include <stdlib.h>
+
 using namespace VolcengineTos;
 
 DefaultTransport::DefaultTransport(const TransportConfig& config) {
@@ -51,7 +53,7 @@ std::shared_ptr<TosResponse> DefaultTransport::roundTrip(const std::shared_ptr<T
     if (cl.empty()) {
         res->setContentLength(0);
     } else {
-        res->setContentLength(std::stoll(cl));
+        res->setContentLength(atoll(cl.c_str()));
     }
     // Reference to stack memory associated with local variable 'res' returned
     return res;

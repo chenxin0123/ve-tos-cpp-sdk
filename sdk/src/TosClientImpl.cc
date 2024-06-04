@@ -11,7 +11,10 @@
 #include "model/object/UploadFileCheckpoint.h"
 #include "utils/crc64.h"
 #include "model/object/UploadFileCheckpointV2.h"
+#include "common/Common.h"
+#if !defined(DISABLE_SPDLOG)
 #include "utils/LogUtils.h"
+#endif
 #include "model/object/DownloadFileCheckpoint.h"
 #include "model/object/PostSignatureConditionInner.h"
 #include "model/object/PostPolicyInner.h"
@@ -679,7 +682,7 @@ static void getObjectSetOptionHeader(RequestBuilder& rb, const GetObjectV2Input&
     setSSECHeader(input.getSsecAlgorithm(), input.getSsecKey(), input.getSsecKeyMd5(), rb);
 
     if (input.getTrafficLimit() != 0) {
-        rb.withHeader(HEADER_TRAFFIC_LIMIT, std::to_string(input.getTrafficLimit()));
+        rb.withHeader(HEADER_TRAFFIC_LIMIT, TO_STRING(input.getTrafficLimit()));
     }
     rb.withQueryCheckEmpty("x-tos-process", input.getProcess());
 
@@ -760,7 +763,7 @@ Outcome<TosError, GetObjectV2Output> TosClientImpl::getObject(const GetObjectV2I
         auto hashCrc64String = tosRes.result()->findHeader(HEADER_CRC64);
         if (!hashCrc64String.empty()) {
             uint64_t hashcrc64 = 0;
-            hashcrc64 = std::stoull(hashCrc64String);
+            hashcrc64 = atoll(hashCrc64String.c_str());
             if (tosRes.result()->getHashCrc64Result() != hashcrc64) {
                 TosError error;
                 error.setIsClientError(true);
@@ -1111,7 +1114,7 @@ static void putObjectSetOptionHeader(RequestBuilder& rb, const PutObjectBasicInp
     rb.withHeader(http::HEADER_CACHE_CONTROL, basic_input.getCacheControl());
 
     if (basic_input.getTrafficLimit() != 0) {
-        rb.withHeader(HEADER_TRAFFIC_LIMIT, std::to_string(basic_input.getTrafficLimit()));
+        rb.withHeader(HEADER_TRAFFIC_LIMIT, TO_STRING(basic_input.getTrafficLimit()));
     }
 
     rb.withHeader(http::HEADER_EXPIRES, TimeUtils::transTimeToGmtTime(basic_input.getExpires()));
@@ -1187,7 +1190,7 @@ Outcome<TosError, PutObjectV2Output> TosClientImpl::putObject(const PutObjectV2I
         auto hashCrc64String = tosRes.result()->findHeader(HEADER_CRC64);
         if (!hashCrc64String.empty()) {
             uint64_t hashcrc64 = 0;
-            hashcrc64 = std::stoull(hashCrc64String);
+            hashcrc64 = atoll(hashCrc64String.c_str());
             if (tosRes.result()->getHashCrc64Result() != hashcrc64) {
                 TosError error;
                 error.setIsClientError(true);
@@ -1207,7 +1210,7 @@ Outcome<TosError, PutObjectV2Output> TosClientImpl::putObject(const PutObjectV2I
     auto hashCrc64String = tosRes.result()->findHeader(HEADER_CRC64);
     uint64_t hashCrc64 = 0;
     if (!hashCrc64String.empty()) {
-        hashCrc64 = std::stoull(hashCrc64String);
+        hashCrc64 = atoll(hashCrc64String.c_str());
     }
     output.setHashCrc64ecma(hashCrc64);
     if (!input.getCallBack().empty() && tosRes.result()->getContent() != nullptr) {
@@ -1835,7 +1838,9 @@ Outcome<TosError, UploadFileV2Output> TosClientImpl::uploadPartConcurrent(const 
     auto cancel = input.getCancelHook();
     std::atomic<bool> isAbort(false);
     std::atomic<bool> isSuccess(true);
+#if !defined(DISABLE_SPDLOG)
     auto logger = LogUtils::GetLogger();
+#endif
 
     // 进度条相关参数
     UploadDownloadFileProcessStat processStat;
@@ -1979,9 +1984,11 @@ Outcome<TosError, UploadFileV2Output> TosClientImpl::uploadPartConcurrent(const 
         AbortMultipartUploadInput abort(checkpoint.getBucket(), checkpoint.getKey(), checkpoint.getUploadId());
         auto abortRes = this->abortMultipartUpload(abort);
         if (!abortRes.isSuccess()) {
+#if !defined(DISABLE_SPDLOG)
             if (logger != nullptr) {
                 logger->info("abort multipart upload failed");
             }
+#endif
         }
 
         ret.setSuccess(false);
@@ -1998,9 +2005,11 @@ Outcome<TosError, UploadFileV2Output> TosClientImpl::uploadPartConcurrent(const 
                 AbortMultipartUploadInput abort(checkpoint.getBucket(), checkpoint.getKey(), checkpoint.getUploadId());
                 auto abortRes = this->abortMultipartUpload(abort);
                 if (!abortRes.isSuccess()) {
+#if !defined(DISABLE_SPDLOG)
                     if (logger != nullptr) {
                         logger->info("abort multipart upload failed");
                     }
+#endif
                 }
                 // 删除 checkPoint 文件
                 if (input.isEnableCheckpoint()) {
@@ -2455,7 +2464,9 @@ Outcome<TosError, DownloadFileOutput> TosClientImpl::downloadPartConcurrent(
     std::string tempFilePath = dfi.getTempFilePath();
     std::atomic<bool> isAbort(false);
     std::atomic<bool> isSuccess(true);
+#if !defined(DISABLE_SPDLOG)
     auto logger = LogUtils::GetLogger();
+#endif
     // 进度条相关参数
     UploadDownloadFileProcessStat processStat;
     auto pProcessStat = &processStat;
@@ -2546,9 +2557,11 @@ Outcome<TosError, DownloadFileOutput> TosClientImpl::downloadPartConcurrent(
                             if (tempFile.bad() || tempFile.fail()) {
                                 DownloadPartInfo partInfo{part.getPartNum(), part.getRangeStart(), part.getRangeEnd()};
                                 downloadEventDownloadPartAborted(event, eventChange, partInfo);
+#if !defined(DISABLE_SPDLOG)
                                 if (logger != nullptr) {
                                     logger->info("failed to write stream to file");
                                 }
+#endif
                                 isAbort = true;
                             } else {
                                 // 下载段成功
@@ -2771,7 +2784,7 @@ Outcome<TosError, AppendObjectOutput> TosClientImpl::appendObject(const std::str
     auto rb = newBuilder(bucket, objectKey);
     setContentType(rb, objectKey);
     rb.withQuery("append", "");
-    rb.withQuery("offset", std::to_string(offset));
+    rb.withQuery("offset", TO_STRING(offset));
     auto req = rb.Build(http::MethodPost, content);
     this->appendObject(req, res);
     return res;
@@ -2793,7 +2806,7 @@ Outcome<TosError, AppendObjectOutput> TosClientImpl::appendObject(const std::str
     auto rb = newBuilder(bucket, objectKey, builder);
     setContentType(rb, objectKey);
     rb.withQuery("append", "");
-    rb.withQuery("offset", std::to_string(offset));
+    rb.withQuery("offset", TO_STRING(offset));
     auto req = rb.Build(http::MethodPost, content);
     this->appendObject(req, res);
     return res;
@@ -2809,7 +2822,7 @@ static void appendObjectSetOptionHeader(RequestBuilder& rb, const AppendObjectV2
     rb.withHeader(HEADER_WEBSITE_REDIRECT_LOCATION, input.getWebsiteRedirectLocation());
     rb.withHeader(HEADER_STORAGE_CLASS, StorageClassTypetoString[input.getStorageClass()]);
     if (input.getTrafficLimit() != 0) {
-        rb.withHeader(HEADER_TRAFFIC_LIMIT, std::to_string(input.getTrafficLimit()));
+        rb.withHeader(HEADER_TRAFFIC_LIMIT, TO_STRING(input.getTrafficLimit()));
     }
 }
 Outcome<TosError, AppendObjectV2Output> TosClientImpl::appendObject(const AppendObjectV2Input& input) {
@@ -2834,7 +2847,7 @@ Outcome<TosError, AppendObjectV2Output> TosClientImpl::appendObject(const Append
     // offset有默认值因此不校验
     auto rb = newBuilder(input.getBucket(), input.getKey());
     rb.withQuery("append", "");
-    rb.withQuery("offset", std::to_string(input.getOffset()));
+    rb.withQuery("offset", TO_STRING(input.getOffset()));
 
     if (config_.isAutoRecognizeContentType()) {
         setContentType(rb, input.getKey());
@@ -2864,7 +2877,7 @@ Outcome<TosError, AppendObjectV2Output> TosClientImpl::appendObject(const Append
         auto hashCrc64String = tosRes.result()->findHeader(HEADER_CRC64);
         if (!hashCrc64String.empty()) {
             uint64_t hashcrc64 = 0;
-            hashcrc64 = std::stoull(hashCrc64String);
+            hashcrc64 = atoll(hashCrc64String.c_str());
             if (tosRes.result()->getHashCrc64Result() != hashcrc64) {
                 TosError error;
                 error.setIsClientError(true);
@@ -2878,11 +2891,11 @@ Outcome<TosError, AppendObjectV2Output> TosClientImpl::appendObject(const Append
     AppendObjectV2Output output;
     output.setRequestInfo(tosRes.result()->GetRequestInfo());
     auto nextOffset = tosRes.result()->findHeader(HEADER_NEXT_APPEND_OFFSET);
-    output.setNextAppendOffset(std::stoll(nextOffset));
+    output.setNextAppendOffset(atoll(nextOffset.c_str()));
     auto hashCrc64String = tosRes.result()->findHeader(HEADER_CRC64);
     uint64_t hashCrc64 = 0;
     if (!hashCrc64String.empty()) {
-        hashCrc64 = std::stoull(hashCrc64String);
+        hashCrc64 = atoll(hashCrc64String.c_str());
     }
     output.setHashCrc64ecma(hashCrc64);
     res.setSuccess(true);
@@ -2971,7 +2984,7 @@ Outcome<TosError, ListObjectsOutput> TosClientImpl::listObjects(const std::strin
     rb.withQueryCheckEmpty("delimiter", input.getDelimiter());
     rb.withQueryCheckEmpty("marker", input.getMarker());
     if (input.getMaxKeys() != 0) {
-        rb.withQueryCheckEmpty("max-keys", std::to_string(input.getMaxKeys()));
+        rb.withQueryCheckEmpty("max-keys", TO_STRING(input.getMaxKeys()));
     }
     rb.withQueryCheckEmpty("encoding-type", input.getEncodingType());
     auto req = rb.Build(http::MethodGet, nullptr);
@@ -3008,7 +3021,7 @@ Outcome<TosError, ListObjectsV2Output> TosClientImpl::listObjects(const ListObje
     rb.withQueryCheckEmpty("delimiter", input.getDelimiter());
     rb.withQueryCheckEmpty("encoding-type", input.getEncodingType());
     if (input.getMaxKeys() != 0) {
-        rb.withQueryCheckEmpty("max-keys", std::to_string(input.getMaxKeys()));
+        rb.withQueryCheckEmpty("max-keys", TO_STRING(input.getMaxKeys()));
     }
     rb.withQueryCheckEmpty("prefix", input.getPrefix());
     rb.withQueryCheckEmpty("marker", input.getMarker());
@@ -3047,7 +3060,7 @@ Outcome<TosError, ListObjectVersionsOutput> TosClientImpl::listObjectVersions(co
     rb.withQueryCheckEmpty("delimiter", input.getDelimiter());
     rb.withQueryCheckEmpty("key-marker", input.getKeyMarker());
     if (input.getMaxKeys() != 0) {
-        rb.withQueryCheckEmpty("max-keys", std::to_string(input.getMaxKeys()));
+        rb.withQueryCheckEmpty("max-keys", TO_STRING(input.getMaxKeys()));
     }
     rb.withQueryCheckEmpty("encoding-type", input.getEncodingType());
     rb.withQuery("versions", "");
@@ -3086,7 +3099,7 @@ Outcome<TosError, ListObjectVersionsV2Output> TosClientImpl::listObjectVersions(
     rb.withQueryCheckEmpty("delimiter", input.getDelimiter());
     rb.withQueryCheckEmpty("key-marker", input.getKeyMarker());
     if (input.getMaxKeys() != 0) {
-        rb.withQueryCheckEmpty("max-keys", std::to_string(input.getMaxKeys()));
+        rb.withQueryCheckEmpty("max-keys", TO_STRING(input.getMaxKeys()));
     }
     rb.withQueryCheckEmpty("encoding-type", input.getEncodingType());
     rb.withQueryCheckEmpty("version-id-marker", input.getVersionIdMarker());
@@ -3184,7 +3197,7 @@ static void copyObjectSetOptionHeader(RequestBuilder& rb, const CopyObjectV2Inpu
     rb.withHeader(HEADER_WEBSITE_REDIRECT_LOCATION, input.getWebsiteRedirectLocation());
     rb.withHeader(HEADER_STORAGE_CLASS, StorageClassTypetoString[input.getStorageClass()]);
     if (input.getTrafficLimit() != 0) {
-        rb.withHeader(HEADER_TRAFFIC_LIMIT, std::to_string(input.getTrafficLimit()));
+        rb.withHeader(HEADER_TRAFFIC_LIMIT, TO_STRING(input.getTrafficLimit()));
     }
 }
 Outcome<TosError, CopyObjectV2Output> TosClientImpl::copyObject(const CopyObjectV2Input& input) {
@@ -3331,17 +3344,17 @@ static std::string copyRange(long startOffset, long partSize) {
     if (startOffset == 0) {
         if (partSize != 0) {
             cr += "bytes=";
-            cr += std::to_string(startOffset);
+            cr += TO_STRING(startOffset);
             cr += "-";
-            cr += std::to_string(startOffset + partSize - 1);
+            cr += TO_STRING(startOffset + partSize - 1);
         } else {
             cr += "bytes=";
-            cr += std::to_string(startOffset);
+            cr += TO_STRING(startOffset);
             cr += "-";
         }
     } else if (partSize != 0) {
         cr += "bytes=0-";
-        cr += std::to_string(partSize - 1);
+        cr += TO_STRING(partSize - 1);
     }
     return cr;
 }
@@ -3422,7 +3435,7 @@ static void uploadPartCopySetOptionHeader(RequestBuilder& rb, const UploadPartCo
     rb.withHeader(HEADER_COPY_SOURCE_IF_UNMODIFIED_SINCE,
                   TimeUtils::transTimeToGmtTime(input.getCopySourceIfUnmodifiedSince()));
     if (input.getTrafficLimit() != 0) {
-        rb.withHeader(HEADER_TRAFFIC_LIMIT, std::to_string(input.getTrafficLimit()));
+        rb.withHeader(HEADER_TRAFFIC_LIMIT, TO_STRING(input.getTrafficLimit()));
     }
     if (!input.getCopySourceRange().empty()) {
         rb.withHeader(HEADER_COPY_SOURCE_RANGE, input.getCopySourceRange());
@@ -3495,7 +3508,7 @@ Outcome<TosError, UploadPartCopyV2Output> TosClientImpl::uploadPartCopy(const Up
         return res;
     }
     auto rb = newBuilder(input.getBucket(), input.getKey());
-    rb.withQuery("partNumber", std::to_string(input.getPartNumber()));
+    rb.withQuery("partNumber", TO_STRING(input.getPartNumber()));
     rb.withQuery("uploadId", input.getUploadId());
     uploadPartCopySetOptionHeader(rb, input);
     auto req = rb.BuildWithCopySource(http::MethodPut, input.getSrcBucket(), input.getSrcKey());
@@ -3922,13 +3935,13 @@ Outcome<TosError, UploadPartV2Output> TosClientImpl::uploadPart(const UploadPart
     auto rb = newBuilder(uploadPartBasicInput_.getBucket(), uploadPartBasicInput_.getKey());
     rb.setContentLength(input.getContentLength());
     rb.withQuery("uploadId", uploadPartBasicInput_.getUploadId());
-    rb.withQuery("partNumber", std::to_string(uploadPartBasicInput_.getPartNumber()));
+    rb.withQuery("partNumber", TO_STRING(uploadPartBasicInput_.getPartNumber()));
 
     const auto& basic_input = input.getUploadPartBasicInput();
     rb.withHeader(http::HEADER_CONTENT_MD5, basic_input.getContentMd5());
     setSSECHeader(basic_input.getSsecAlgorithm(), basic_input.getSsecKey(), basic_input.getSsecKeyMd5(), rb);
     if (input.getTrafficLimit() != 0) {
-        rb.withHeader(HEADER_TRAFFIC_LIMIT, std::to_string(input.getTrafficLimit()));
+        rb.withHeader(HEADER_TRAFFIC_LIMIT, TO_STRING(input.getTrafficLimit()));
     }
 
     auto req = rb.Build(http::MethodPut, input.getContent());
@@ -3961,7 +3974,7 @@ Outcome<TosError, UploadPartV2Output> TosClientImpl::uploadPart(const UploadPart
         auto hashCrc64String = tosRes.result()->findHeader(HEADER_CRC64);
         if (!hashCrc64String.empty()) {
             uint64_t hashcrc64 = 0;
-            hashcrc64 = std::stoull(hashCrc64String);
+            hashcrc64 = atoll(hashCrc64String.c_str());
             if (tosRes.result()->getHashCrc64Result() != hashcrc64) {
                 TosError error;
                 error.setIsClientError(true);
@@ -3981,7 +3994,7 @@ Outcome<TosError, UploadPartV2Output> TosClientImpl::uploadPart(const UploadPart
     auto hashCrc64String = tosRes.result()->findHeader(HEADER_CRC64);
     uint64_t hashCrc64 = 0;
     if (!hashCrc64String.empty()) {
-        hashCrc64 = std::stoull(hashCrc64String);
+        hashCrc64 = atoll(hashCrc64String.c_str());
     }
     output.setHashCrc64ecma(hashCrc64);
     res.setSuccess(true);
@@ -4182,7 +4195,7 @@ Outcome<TosError, CompleteMultipartUploadV2Output> TosClientImpl::completeMultip
     auto hashCrc64String = tosRes.result()->findHeader(HEADER_CRC64);
     uint64_t hashCrc64 = 0;
     if (!hashCrc64String.empty()) {
-        hashCrc64 = std::stoull(hashCrc64String);
+        hashCrc64 = atoll(hashCrc64String.c_str());
     }
     output.setHashCrc64ecma(hashCrc64);
     std::stringstream ss_;
@@ -4327,10 +4340,10 @@ Outcome<TosError, ListPartsOutput> TosClientImpl::listParts(const ListPartsInput
     rb.withQuery("uploadId", input.getUploadId());
 
     if (input.getMaxParts() != 0) {
-        rb.withQueryCheckEmpty("max-parts", std::to_string(input.getMaxParts()));
+        rb.withQueryCheckEmpty("max-parts", TO_STRING(input.getMaxParts()));
     }
     if (input.getPartNumberMarker() != 0) {
-        rb.withQueryCheckEmpty("part-number-marker", std::to_string(input.getPartNumberMarker()));
+        rb.withQueryCheckEmpty("part-number-marker", TO_STRING(input.getPartNumberMarker()));
     }
 
     auto req = rb.Build(http::MethodGet, nullptr);
@@ -4360,7 +4373,7 @@ Outcome<TosError, ListMultipartUploadsOutput> TosClientImpl::listMultipartUpload
     rb.withQueryCheckEmpty("key-marker", input.getKeyMarker());
     rb.withQueryCheckEmpty("upload-id-marker", input.getUploadIdMarker());
     if (input.getMaxUploads() != 0) {
-        rb.withQueryCheckEmpty("max-uploads", std::to_string(input.getMaxUploads()));
+        rb.withQueryCheckEmpty("max-uploads", TO_STRING(input.getMaxUploads()));
     }
 
     auto req = rb.Build(http::MethodGet, nullptr);
@@ -4383,7 +4396,7 @@ static void listMultipartUploadsSetOptionHeader(RequestBuilder& rb, const ListMu
     rb.withQueryCheckEmpty("delimiter", input.getDelimiter());
     rb.withQueryCheckEmpty("encoding-type", input.getEncodingType());
     if (input.getMaxUploads() != 0) {
-        rb.withQueryCheckEmpty("max-uploads", std::to_string(input.getMaxUploads()));
+        rb.withQueryCheckEmpty("max-uploads", TO_STRING(input.getMaxUploads()));
     }
     rb.withQueryCheckEmpty("prefix", input.getPrefix());
     rb.withQueryCheckEmpty("key-marker", input.getKeyMarker());
@@ -4622,7 +4635,7 @@ Outcome<TosError, ListObjectsType2Output> TosClientImpl::listObjectsType2(const 
     rb.withQueryCheckEmpty("start-after", input.getStartAfter());
     rb.withQueryCheckEmpty("continuation-token", input.getContinuationToken());
     if (input.getMaxKeys() != 0) {
-        rb.withQueryCheckEmpty("max-keys", std::to_string(input.getMaxKeys()));
+        rb.withQueryCheckEmpty("max-keys", TO_STRING(input.getMaxKeys()));
     }
     rb.withQueryCheckEmpty("encoding-type", input.getEncodingType());
     auto req = rb.Build(http::MethodGet, nullptr);
@@ -4656,7 +4669,7 @@ Outcome<TosError, ListObjectsType2Output> TosClientImpl::listObjectsType2(const 
         int newMaxKey = input.getMaxKeys() - number;
         auto content = output.getContents();
         auto commonPrefixes = output.getCommonPrefixes();
-        rb.withQueryCheckEmpty("max-keys", std::to_string(newMaxKey));
+        rb.withQueryCheckEmpty("max-keys", TO_STRING(newMaxKey));
         rb.withQueryCheckEmpty("continuation-token", output.getNextContinuationToken());
         while (isTruncated && newMaxKey > 0) {
             auto req = rb.Build(http::MethodGet, nullptr);
@@ -4674,7 +4687,7 @@ Outcome<TosError, ListObjectsType2Output> TosClientImpl::listObjectsType2(const 
                      static_cast<int>(outputTemp.getCommonPrefixes().size());
             newMaxKey -= number;
             isTruncated = outputTemp.isTruncated();
-            rb.withQueryCheckEmpty("max-keys", std::to_string(newMaxKey));
+            rb.withQueryCheckEmpty("max-keys", TO_STRING(newMaxKey));
             rb.withQueryCheckEmpty("continuation-token", outputTemp.getNextContinuationToken());
             // 重新计算结果
             output.setKeyCount(outputTemp.getKeyCount());
@@ -5436,8 +5449,8 @@ Outcome<TosError, PreSignedPostSignatureOutput> TosClientImpl::preSignedPostSign
     if (input.getContentLengthRange() != nullptr) {
         // 在拼接 json 时再转回数字
         conditions_.emplace_back(std::make_shared<std::string>("content-length-range"),
-                                 std::to_string(input.getContentLengthRange()->getRangeStart()),
-                                 std::to_string(input.getContentLengthRange()->getRangeEnd()));
+                                 TO_STRING(input.getContentLengthRange()->getRangeStart()),
+                                 TO_STRING(input.getContentLengthRange()->getRangeEnd()));
     }
 
     // post policy 的 expiration 字段
@@ -5696,8 +5709,9 @@ Outcome<TosError, ResumableCopyObjectOutput> TosClientImpl::resumableCopyConcurr
     auto cancel = input.getCancelHook();
     std::atomic<bool> isAbort(false);
     std::atomic<bool> isSuccess(true);
+#if !defined(DISABLE_SPDLOG)
     auto logger = LogUtils::GetLogger();
-
+#endif
     for (int i = 0; i < input.getTaskNum(); i++) {
         auto res = std::thread([&]() {
             while (true) {
@@ -5818,9 +5832,11 @@ Outcome<TosError, ResumableCopyObjectOutput> TosClientImpl::resumableCopyConcurr
         AbortMultipartUploadInput abort(checkpoint.getBucket(), checkpoint.getKey(), checkpoint.getUploadId());
         auto abortRes = this->abortMultipartUpload(abort);
         if (!abortRes.isSuccess()) {
+#if !defined(DISABLE_SPDLOG)
             if (logger != nullptr) {
                 logger->info("abort multipart upload failed");
             }
+#endif
         }
 
         ret.setSuccess(false);
@@ -5837,9 +5853,11 @@ Outcome<TosError, ResumableCopyObjectOutput> TosClientImpl::resumableCopyConcurr
                 AbortMultipartUploadInput abort(checkpoint.getBucket(), checkpoint.getKey(), checkpoint.getUploadId());
                 auto abortRes = this->abortMultipartUpload(abort);
                 if (!abortRes.isSuccess()) {
+#if !defined(DISABLE_SPDLOG)
                     if (logger != nullptr) {
                         logger->info("abort multipart upload failed");
                     }
+#endif
                 }
                 // 删除 checkPoint 文件
                 if (input.isEnableCheckpoint()) {
@@ -6034,7 +6052,7 @@ Outcome<TosError, PreSignedPolicyURLOutput> TosClientImpl::preSignedPolicyURL(co
         expires_ = defaultSignExpires;
     }
     // Expires
-    query_.emplace_back(std::pair<std::string, std::string>{"X-Tos-Expires", std::to_string(expires_)});
+    query_.emplace_back(std::pair<std::string, std::string>{"X-Tos-Expires", TO_STRING(expires_)});
     // algorithm
     query_.emplace_back(std::pair<std::string, std::string>{"X-Tos-Algorithm", "TOS4-HMAC-SHA256"});
     // data
@@ -6899,6 +6917,7 @@ bool TosClientImpl::checkExpectedCode(int statusCode, int expectedCode) {
     return statusCode == expectedCode;
 }
 
+#if !defined(DISABLE_SPDLOG)
 void logErrRes(int statusCode, std::string code, bool isHighLatencyReq, const std::shared_ptr<spdlog::logger>& logger) {
     if (logger != nullptr) {
         if (isHighLatencyReq) {
@@ -6913,6 +6932,7 @@ void logErrRes(int statusCode, std::string code, bool isHighLatencyReq, const st
         std::cout << ss.str() << std::endl;
     }
 }
+#endif
 
 Outcome<TosError, std::shared_ptr<TosResponse>> TosClientImpl::roundTrip(const std::shared_ptr<TosRequest>& request,
                                                                          int expectedCode) {
@@ -6934,8 +6954,9 @@ Outcome<TosError, std::shared_ptr<TosResponse>> TosClientImpl::roundTrip(const s
     if (findInHighLatencyLogMethods(request->getFuncName())) {
         request->setCheckHighLatency(true);
     }
-
+#if !defined(DISABLE_SPDLOG)
     auto logger = LogUtils::GetLogger();
+#endif
     auto rateLimiter = request->getRataLimiter();
     auto maxRetry = config_.getMaxRetryCount() < 0 ? 0 : config_.getMaxRetryCount();
     long retrySleepTime = 0;
@@ -6950,6 +6971,7 @@ Outcome<TosError, std::shared_ptr<TosResponse>> TosClientImpl::roundTrip(const s
         std::chrono::duration<double, std::milli> fp_ms = endTime - startTime;
         bool isHighLatencyReq = resp->isHighLatency();
         if (checkExpectedCode(resp->getStatusCode(), expectedCode)) {
+#if !defined(DISABLE_SPDLOG)
             if (logger != nullptr) {
                 auto logger = LogUtils::GetLogger();
                 if (isHighLatencyReq) {
@@ -6966,25 +6988,28 @@ Outcome<TosError, std::shared_ptr<TosResponse>> TosClientImpl::roundTrip(const s
                 ss << "Cost:" << fp_ms.count() << " ms";
                 std::cout << ss.str() << std::endl;
             }
+#endif
 
             ret.setR(resp);
             ret.setSuccess(true);
             return ret;
         } else if (checkShouldRetry(request, resp) && retry < maxRetry) {
-            std::string retryInfo = "attempt=" + std::to_string(retry + 1) + "; max=" + std::to_string(maxRetry);
+            std::string retryInfo = "attempt=" + TO_STRING(retry + 1) + "; max=" + TO_STRING(maxRetry);
             request->setSingleHeader(http::HEADER_SDK_RETRY_COUNT, retryInfo);
             retrySleepTime = config_.getRetrySleepScale() * (1 << retry);
             if ((resp->getStatusCode() == 429) || (resp->getStatusCode() == 503)) {
                 std::string retryAfter = resp->findHeader(http::HEADER_Retry_After);
                 if (!retryAfter.empty()) {
-                    long retryAfterTime = stol(retryAfter) * 1000;
+                    long retryAfterTime = atol(retryAfter.c_str()) * 1000;
                     retrySleepTime = retryAfterTime > retrySleepTime ? retryAfterTime : retrySleepTime;
                 }
             }
+#if !defined(DISABLE_SPDLOG)
             if (logger != nullptr) {
                 logger->info("http status code:{}, http error:{}, func name:{}, will retry once", resp->getStatusCode(),
                              resp->getStatusMsg(), request->getFuncName());
             }
+#endif
             continue;
         } else {
             // check error
@@ -7008,7 +7033,9 @@ Outcome<TosError, std::shared_ptr<TosResponse>> TosClientImpl::roundTrip(const s
                 se.setCode("operation timeout");
                 se.setCurlErrCode(resp->getCurlErrCode());
                 ret.setE(se);
+#if !defined(DISABLE_SPDLOG)
                 logErrRes(resp->getStatusCode(), se.getCode(), isHighLatencyReq, logger);
+#endif
                 return ret;
             }
             if (resp->getStatusCode() >= 300 ||
@@ -7028,7 +7055,9 @@ Outcome<TosError, std::shared_ptr<TosResponse>> TosClientImpl::roundTrip(const s
                     }
                     se.setStatusCode(resp->getStatusCode());
                     ret.setE(se);
+#if !defined(DISABLE_SPDLOG)
                     logErrRes(resp->getStatusCode(), se.getCode(), isHighLatencyReq, logger);
+#endif
                     return ret;
                 }
                 // 特别处理 404
@@ -7037,7 +7066,9 @@ Outcome<TosError, std::shared_ptr<TosResponse>> TosClientImpl::roundTrip(const s
                     se.setStatusCode(resp->getStatusCode());
                     se.setRequestId(resp->getRequestID());
                     ret.setE(se);
+#if !defined(DISABLE_SPDLOG)
                     logErrRes(resp->getStatusCode(), se.getCode(), isHighLatencyReq, logger);
+#endif
                     return ret;
                 }
             }
@@ -7050,7 +7081,9 @@ Outcome<TosError, std::shared_ptr<TosResponse>> TosClientImpl::roundTrip(const s
             se.setMessage(resp->getStatusMsg());
             se.setRequestId(resp->getRequestID());
             ret.setE(se);
+#if !defined(DISABLE_SPDLOG)
             logErrRes(resp->getStatusCode(), se.getCode(), isHighLatencyReq, logger);
+#endif
             return ret;
         }
     }
@@ -7076,8 +7109,9 @@ Outcome<TosError, std::shared_ptr<TosResponse>> TosClientImpl::roundTrip(const s
     if (findInHighLatencyLogMethods(request->getFuncName())) {
         request->setCheckHighLatency(true);
     }
-
+#if !defined(DISABLE_SPDLOG)
     auto logger = LogUtils::GetLogger();
+#endif
     auto rateLimiter = request->getRataLimiter();
     auto maxRetry = config_.getMaxRetryCount() < 0 ? 0 : config_.getMaxRetryCount();
     long retrySleepTime = 0;
@@ -7092,6 +7126,7 @@ Outcome<TosError, std::shared_ptr<TosResponse>> TosClientImpl::roundTrip(const s
         std::chrono::duration<double, std::milli> fp_ms = endTime - startTime;
         bool isHighLatencyReq = resp->isHighLatency();
         if (checkExpectedCode(resp->getStatusCode(), expectedCode)) {
+#if !defined(DISABLE_SPDLOG)
             if (logger != nullptr) {
                 auto logger = LogUtils::GetLogger();
                 if (isHighLatencyReq) {
@@ -7108,25 +7143,27 @@ Outcome<TosError, std::shared_ptr<TosResponse>> TosClientImpl::roundTrip(const s
                 ss << "Cost:" << fp_ms.count() << " ms";
                 std::cout << ss.str() << std::endl;
             }
-
+#endif
             ret.setR(resp);
             ret.setSuccess(true);
             return ret;
         } else if (checkShouldRetry(request, resp) && retry < maxRetry) {
-            std::string retryInfo = "attempt=" + std::to_string(retry + 1) + "; max=" + std::to_string(maxRetry);
+            std::string retryInfo = "attempt=" + TO_STRING(retry + 1) + "; max=" + TO_STRING(maxRetry);
             request->setSingleHeader(http::HEADER_SDK_RETRY_COUNT, retryInfo);
             retrySleepTime = config_.getRetrySleepScale() * (1 << retry);
             if ((resp->getStatusCode() == 429) || (resp->getStatusCode() == 503)) {
                 std::string retryAfter = resp->findHeader(http::HEADER_Retry_After);
                 if (!retryAfter.empty()) {
-                    long retryAfterTime = stol(retryAfter) * 1000;
+                    long retryAfterTime = atol(retryAfter.c_str()) * 1000;
                     retrySleepTime = retryAfterTime > retrySleepTime ? retryAfterTime : retrySleepTime;
                 }
             }
+#if !defined(DISABLE_SPDLOG)
             if (logger != nullptr) {
                 logger->info("http status code:{}, http error:{}, func name:{}, will retry once", resp->getStatusCode(),
                              resp->getStatusMsg(), request->getFuncName());
             }
+#endif
             continue;
         } else {
             // check error
@@ -7150,7 +7187,9 @@ Outcome<TosError, std::shared_ptr<TosResponse>> TosClientImpl::roundTrip(const s
                 se.setCode("operation timeout");
                 se.setCurlErrCode(resp->getCurlErrCode());
                 ret.setE(se);
+#if !defined(DISABLE_SPDLOG)
                 logErrRes(resp->getStatusCode(), se.getCode(), isHighLatencyReq, logger);
+#endif
                 return ret;
             }
             if (resp->getStatusCode() >= 300 ||
@@ -7170,7 +7209,9 @@ Outcome<TosError, std::shared_ptr<TosResponse>> TosClientImpl::roundTrip(const s
                     }
                     se.setStatusCode(resp->getStatusCode());
                     ret.setE(se);
+#if !defined(DISABLE_SPDLOG)
                     logErrRes(resp->getStatusCode(), se.getCode(), isHighLatencyReq, logger);
+#endif
                     return ret;
                 }
                 // 特别处理 404
@@ -7179,7 +7220,9 @@ Outcome<TosError, std::shared_ptr<TosResponse>> TosClientImpl::roundTrip(const s
                     se.setStatusCode(resp->getStatusCode());
                     se.setRequestId(resp->getRequestID());
                     ret.setE(se);
+#if !defined(DISABLE_SPDLOG)
                     logErrRes(resp->getStatusCode(), se.getCode(), isHighLatencyReq, logger);
+#endif
                     return ret;
                 }
             }
@@ -7192,7 +7235,9 @@ Outcome<TosError, std::shared_ptr<TosResponse>> TosClientImpl::roundTrip(const s
             se.setMessage(resp->getStatusMsg());
             se.setRequestId(resp->getRequestID());
             ret.setE(se);
+#if !defined(DISABLE_SPDLOG)
             logErrRes(resp->getStatusCode(), se.getCode(), isHighLatencyReq, logger);
+#endif
             return ret;
         }
     }
@@ -7335,7 +7380,7 @@ void TosClientImpl::appendObject(const std::shared_ptr<TosRequest>& req, Outcome
     output.setRequestInfo(tosRes.result()->GetRequestInfo());
     output.setEtag(tosRes.result()->findHeader(http::HEADER_ETAG));
     if (!nextOffset.empty()) {
-        output.setNextAppendOffset(stoi(nextOffset));
+        output.setNextAppendOffset(atoi(nextOffset.c_str()));
     }
     output.setCrc64(tosRes.result()->findHeader(HEADER_CRC64));
     res.setSuccess(true);
@@ -7388,7 +7433,7 @@ void TosClientImpl::copyObject(std::shared_ptr<TosRequest>& req, Outcome<TosErro
 
 void TosClientImpl::uploadPartCopy(RequestBuilder& rb, const UploadPartCopyInput& input,
                                    Outcome<TosError, UploadPartCopyOutput>& res) {
-    rb.withQuery("partNumber", std::to_string(input.getPartNumber()));
+    rb.withQuery("partNumber", TO_STRING(input.getPartNumber()));
     rb.withQuery("uploadId", input.getUploadId());
     rb.withQueryCheckEmpty("versionId", input.getSourceVersionId());
     rb.withHeader(HEADER_COPY_SOURCE_RANGE, copyRange(input.getStartOffset(), input.getPartSize()));
@@ -7461,7 +7506,7 @@ void TosClientImpl::uploadPart(RequestBuilder& rb, const UploadPartInput& input,
     if ((int)input.getPartSize() != input.getPartSize()) {
         TosError se;
         std::string errMsg = "UploadPart method has overhead size: ";
-        errMsg += std::to_string(input.getPartSize());
+        errMsg += TO_STRING(input.getPartSize());
         se.setMessage(errMsg);
         res.setE(se);
         res.setSuccess(false);
@@ -7469,7 +7514,7 @@ void TosClientImpl::uploadPart(RequestBuilder& rb, const UploadPartInput& input,
     }
     rb.setContentLength(input.getPartSize());
     rb.withQuery("uploadId", input.getUploadId());
-    rb.withQuery("partNumber", std::to_string(input.getPartNumber()));
+    rb.withQuery("partNumber", TO_STRING(input.getPartNumber()));
     auto req = rb.Build(http::MethodPut, input.getContent());
     auto tosRes = roundTrip(req, 200);
     if (!tosRes.isSuccess()) {

@@ -56,7 +56,7 @@ VolcengineTos::ListedObjectVersionV2 parseListedObjectVersion(const json& versio
     if (version.contains("HashCrc64ecma")) {
         auto hashCrc_ = version.at("HashCrc64ecma").get<std::string>();
         if (!hashCrc_.empty()) {
-            listedObjectVersion.setHashCrc64Ecma(stoull(hashCrc_));
+            listedObjectVersion.setHashCrc64Ecma(atoll(hashCrc_.c_str()));
         }
     }
 

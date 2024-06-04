@@ -1,5 +1,9 @@
 #pragma once
 
+
+#include "common/Common.h"
+#if !defined(DISABLE_SPDLOG)
+
 #include "Type.h"
 #include <iostream>
 #include <memory>
@@ -100,3 +104,5 @@ private:
     std::shared_ptr<spdlog::logger> logger_ = nullptr;
 };
 }  // namespace VolcengineTos
+
+#endif

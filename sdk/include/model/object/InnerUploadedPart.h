@@ -2,6 +2,7 @@
 
 #include <string>
 #include <utility>
+#include "common/Common.h"
 namespace VolcengineTos {
 namespace inner {
 class InnerUploadedPart {
@@ -28,7 +29,7 @@ public:
     }
     std::string toString() {
         std::string ret("{");
-        ret += std::to_string(partNumber_);
+        ret += TO_STRING(partNumber_);
         ret += " ";
         ret += etag_;
         ret += "}";

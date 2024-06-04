@@ -6,7 +6,9 @@
 #include "utils/BaseUtils.h"
 #include "TosClient.h"
 #include "utils/crc64.h"
+#if !defined(DISABLE_SPDLOG)
 #include "../../utils/LogUtils.h"
+#endif
 
 namespace VolcengineTos {
 struct ResourceManager {
@@ -289,7 +291,7 @@ std::shared_ptr<HttpResponse> HttpClient::doRequest(const std::shared_ptr<HttpRe
 
 
     if (proxyPort_ != -1 && !proxyHost_.empty()) {
-        std::string proxy = proxyHost_ + ":" + std::to_string(proxyPort_);
+        std::string proxy = proxyHost_ + ":" + TO_STRING(proxyPort_);
         std::string proxyUserPwd = proxyUsername_ + ":" + proxyPassword_;
         curl_easy_setopt(curl, CURLOPT_PROXY, proxy.c_str());
         curl_easy_setopt(curl, CURLOPT_PROXYUSERPWD, proxyUserPwd.c_str());
@@ -419,6 +421,8 @@ std::shared_ptr<HttpResponse> HttpClient::doRequest(const std::shared_ptr<HttpRe
         isHighLatencyReq = true;
         response->setIsHighLatencyReq(isHighLatencyReq);
     }
+
+#if !defined(DISABLE_SPDLOG)
     auto logger = LogUtils::GetLogger();
 
     if (logger != nullptr) {
@@ -449,6 +453,7 @@ std::shared_ptr<HttpResponse> HttpClient::doRequest(const std::shared_ptr<HttpRe
         ss << "Total HTTP request time:" << (long)(totalTime * 1000) << " ms";
         std::cout << ss.str() << std::endl;
     }
+#endif
 
     if (res != CURLE_OK && dnsCacheTime_ > 0) {
         removeDNS(curl, request);

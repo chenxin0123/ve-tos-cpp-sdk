@@ -24,6 +24,7 @@
 #define  tos_rmdir(a)   ::rmdir(a)
 #define  tos_stat       stat
 #endif
+#include <stdlib.h>
 
 using namespace VolcengineTos;
 
@@ -90,8 +91,10 @@ std::time_t TimeUtils::transGMTFormatStringToTime(const std::string& t) {
     if (result == 7) {
         tm.tm_year = tm.tm_year - 1900;
         tm.tm_mon = tm.tm_mon - 1;
-#ifdef _WIN32
-        tt = _mkgmtime64(&tm);
+#if defined(_WIN32)
+        tt = _mkgmtime(&tm);
+#elif defined(__ANDROID__)
+        tt = mktime(&tm);
 #else
         tt = timegm(&tm);
 #endif  // _WIN32
@@ -110,8 +113,10 @@ std::time_t TimeUtils::transLastModifiedStringToTime(const std::string& t) {
     if (result == 7) {
         tm.tm_year = tm.tm_year - 1900;
         tm.tm_mon = tm.tm_mon - 1;
-#ifdef _WIN32
-        tt = _mkgmtime64(&tm);
+#if defined(_WIN32)
+        tt = _mkgmtime(&tm);
+#elif defined(__ANDROID__)
+        tt = mktime(&tm);
 #else
         tt = timegm(&tm);
 #endif  // _WIN32
@@ -130,8 +135,10 @@ std::time_t TimeUtils::transEcsExpiredTimeStringToTime(const std::string& t) {
     if (result == 8) {
         tm.tm_year = tm.tm_year - 1900;
         tm.tm_mon = tm.tm_mon - 1;
-#ifdef _WIN32
-        tt = _mkgmtime64(&tm);
+#if defined(_WIN32)
+        tt = _mkgmtime(&tm);
+#elif defined(__ANDROID__)
+        tt = mktime(&tm);
 #else
         tt = timegm(&tm);
 #endif  // _WIN32

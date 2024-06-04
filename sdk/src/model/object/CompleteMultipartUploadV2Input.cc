@@ -6,7 +6,7 @@ std::string VolcengineTos::CompleteMultipartUploadV2Input::toJsonString() const 
     nlohmann::json partsArray = nlohmann::json::array();
     for (auto& p : parts_) {
         nlohmann::json parts;
-        auto partNumber_ = std::to_string(p.getPartNumber());
+        auto partNumber_ = TO_STRING(p.getPartNumber());
         if (!partNumber_.empty())
             parts["PartNumber"] = p.getPartNumber();
         if (!p.getETag().empty())

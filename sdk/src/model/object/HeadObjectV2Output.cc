@@ -25,7 +25,7 @@ void VolcengineTos::HeadObjectV2Output::fromResponse(TosResponse& res) {
     storageClass_ = StringtoStorageClassType[res.findHeader(HEADER_STORAGE_CLASS)];
 
     if (!res.findHeader(HEADER_CRC64).empty()) {
-        hashCrc64ecma_ = stoull(res.findHeader(HEADER_CRC64));
+        hashCrc64ecma_ = atoll(res.findHeader(HEADER_CRC64).c_str());
     }
 
     meta_ = userMeta(res.getHeaders());

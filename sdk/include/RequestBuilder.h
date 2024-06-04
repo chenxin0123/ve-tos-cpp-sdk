@@ -32,7 +32,7 @@ public:
     }
     std::string toString() const {
         std::string ret;
-        ret.append("bytes=").append(std::to_string(start_)).append("-").append(std::to_string(end_));
+        ret.append("bytes=").append(TO_STRING(start_)).append("-").append(TO_STRING(end_));
         return ret;
     }
     bool isNull() const {

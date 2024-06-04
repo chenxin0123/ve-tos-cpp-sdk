@@ -1,8 +1,9 @@
 #include "SignV4.h"
 #include "auth/Credentials.h"
 #include "utils/BaseUtils.h"
-#include "../utils/LogUtils.h"
-
+#if !defined(DISABLE_SPDLOG)
+    #include "../utils/LogUtils.h"
+#endif
 #include <ctime>
 #include <utility>
 #include <vector>
@@ -12,6 +13,7 @@
 #include <openssl/sha.h>
 #include <cstring>
 #include <thread>
+#include "common/Common.h"
 
 namespace VolcengineTos {
 SignV4::SignV4(const std::shared_ptr<Credentials>& credentials, std::string region) : region_(std::move(region)) {
@@ -108,7 +110,7 @@ std::map<std::string, std::string> SignV4::signQuery(const std::shared_ptr<TosRe
     extra[v4Algorithm] = signPrefix;
     extra[v4Credential] = credential;
     extra[v4Date] = date;
-    extra[v4Expires] = std::to_string(ttl.count());
+    extra[v4Expires] = TO_STRING(ttl.count());
     if (!cred.getSecurityToken().empty()) {
         extra[v4SecurityToken] = cred.getSecurityToken();
     }
@@ -318,11 +320,12 @@ std::string SignV4::doSign(const std::string& method, const std::string& path, c
 
     std::string req = this->canonicalRequest(method, path, contentSha256, header, query);
     std::string canonicalRequest = "canonicalRequest: " + req;
+#if !defined(DISABLE_SPDLOG)
     auto l = LogUtils::GetLogger();
     if (l != nullptr) {
         l->debug(canonicalRequest);
     }
-
+#endif
     buf.append(signPrefix).append(split);
 
     buf.append(TimeUtils::transTimeToFormat(now, iso8601Layout)).append(split);
@@ -335,10 +338,12 @@ std::string SignV4::doSign(const std::string& method, const std::string& path, c
     std::string hexSum(StringUtils::stringToHex(sum, 32));
     buf.append(hexSum);
 
+#if !defined(DISABLE_SPDLOG)
     std::string stringToSign = "string to sign: " + buf;
     if (l != nullptr) {
         l->debug(stringToSign);
     }
+#endif
     unsigned int mdLen = 32;
     unsigned char unsignedDate[32];
     HMAC(EVP_sha256(), cred.getAccessKeySecret().c_str(), cred.getAccessKeySecret().size(),

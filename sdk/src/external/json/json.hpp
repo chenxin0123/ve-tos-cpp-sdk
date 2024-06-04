@@ -49,8 +49,8 @@ SOFTWARE.
 #include <vector> // vector
 
 // #include <nlohmann/adl_serializer.hpp>
-
-
+#include <errno.h>
+#include <stdlib.h>
 #include <type_traits>
 #include <utility>
 
@@ -84,6 +84,8 @@ SOFTWARE.
 #include <cstddef> // size_t
 #include <cstdint> // uint8_t
 #include <string> // string
+
+#include "common/Common.h"
 
 namespace nlohmann
 {
@@ -2332,6 +2334,7 @@ using is_detected_convertible =
     #pragma clang diagnostic ignored "-Wdocumentation-unknown-command"
 #endif
 
+#define JSON_NOEXCEPTION
 // allow to disable exceptions
 #if (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND)) && !defined(JSON_NOEXCEPTION)
     #define JSON_THROW(exception) throw exception
@@ -2780,7 +2783,7 @@ class exception : public std::exception
 
     static std::string name(const std::string& ename, int id_)
     {
-        return "[json.exception." + ename + "." + std::to_string(id_) + "] ";
+        return "[json.exception." + ename + "." + TO_STRING(id_) + "] ";
     }
 
     template<typename BasicJsonType>
@@ -2798,7 +2801,7 @@ class exception : public std::exception
                     {
                         if (&current->m_parent->m_value.array->operator[](i) == current)
                         {
-                            tokens.emplace_back(std::to_string(i));
+                            tokens.emplace_back(TO_STRING(i));
                             break;
                         }
                     }
@@ -2921,7 +2924,7 @@ class parse_error : public exception
     static parse_error create(int id_, std::size_t byte_, const std::string& what_arg, const BasicJsonType& context)
     {
         std::string w = exception::name("parse_error", id_) + "parse error" +
-                        (byte_ != 0 ? (" at byte " + std::to_string(byte_)) : "") +
+                        (byte_ != 0 ? (" at byte " + TO_STRING(byte_)) : "") +
                         ": " + exception::diagnostics(context) + what_arg;
         return {id_, byte_, w.c_str()};
     }
@@ -2943,8 +2946,8 @@ class parse_error : public exception
 
     static std::string position_string(const position_t& pos)
     {
-        return " at line " + std::to_string(pos.lines_read + 1) +
-               ", column " + std::to_string(pos.chars_read_current_line);
+        return " at line " + TO_STRING(pos.lines_read + 1) +
+               ", column " + TO_STRING(pos.chars_read_current_line);
     }
 };
 
@@ -4448,8 +4451,7 @@ template<typename string_type>
 void int_to_string( string_type& target, std::size_t value )
 {
     // For ADL
-    using std::to_string;
-    target = to_string(value);
+    target = TO_STRING(value);
 }
 template<typename IteratorType> class iteration_proxy_value
 {
@@ -6136,7 +6138,7 @@ class json_sax_dom_parser
 
         if (JSON_HEDLEY_UNLIKELY(len != std::size_t(-1) && len > ref_stack.back()->max_size()))
         {
-            JSON_THROW(out_of_range::create(408, "excessive object size: " + std::to_string(len), *ref_stack.back()));
+            JSON_THROW(out_of_range::create(408, "excessive object size: " + TO_STRING(len), *ref_stack.back()));
         }
 
         return true;
@@ -6162,7 +6164,7 @@ class json_sax_dom_parser
 
         if (JSON_HEDLEY_UNLIKELY(len != std::size_t(-1) && len > ref_stack.back()->max_size()))
         {
-            JSON_THROW(out_of_range::create(408, "excessive array size: " + std::to_string(len), *ref_stack.back()));
+            JSON_THROW(out_of_range::create(408, "excessive array size: " + TO_STRING(len), *ref_stack.back()));
         }
 
         return true;
@@ -6317,7 +6319,7 @@ class json_sax_dom_callback_parser
         // check object limit
         if (ref_stack.back() && JSON_HEDLEY_UNLIKELY(len != std::size_t(-1) && len > ref_stack.back()->max_size()))
         {
-            JSON_THROW(out_of_range::create(408, "excessive object size: " + std::to_string(len), *ref_stack.back()));
+            JSON_THROW(out_of_range::create(408, "excessive object size: " + TO_STRING(len), *ref_stack.back()));
         }
 
         return true;
@@ -6387,7 +6389,7 @@ class json_sax_dom_callback_parser
         // check array limit
         if (ref_stack.back() && JSON_HEDLEY_UNLIKELY(len != std::size_t(-1) && len > ref_stack.back()->max_size()))
         {
-            JSON_THROW(out_of_range::create(408, "excessive array size: " + std::to_string(len), *ref_stack.back()));
+            JSON_THROW(out_of_range::create(408, "excessive array size: " + TO_STRING(len), *ref_stack.back()));
         }
 
         return true;
@@ -6762,9 +6764,13 @@ class lexer : public lexer_base<BasicJsonType>
     JSON_HEDLEY_PURE
     static char get_decimal_point() noexcept
     {
-        const auto* loc = localeconv();
-        JSON_ASSERT(loc != nullptr);
-        return (loc->decimal_point == nullptr) ? '.' : *(loc->decimal_point);
+#ifdef ENABLE_LOCALES
+		const auto* loc = localeconv();
+		JSON_ASSERT(loc != nullptr);
+		return (loc->decimal_point == nullptr) ? '.' : *(loc->decimal_point);
+#else
+		return '.';
+#endif  
     }
 
     /////////////////////
@@ -7531,19 +7537,13 @@ class lexer : public lexer_base<BasicJsonType>
     JSON_HEDLEY_NON_NULL(2)
     static void strtof(float& f, const char* str, char** endptr) noexcept
     {
-        f = std::strtof(str, endptr);
+        f = strtof(str, endptr);
     }
 
     JSON_HEDLEY_NON_NULL(2)
     static void strtof(double& f, const char* str, char** endptr) noexcept
     {
-        f = std::strtod(str, endptr);
-    }
-
-    JSON_HEDLEY_NON_NULL(2)
-    static void strtof(long double& f, const char* str, char** endptr) noexcept
-    {
-        f = std::strtold(str, endptr);
+        f = strtod(str, endptr);
     }
 
     /*!
@@ -7870,7 +7870,7 @@ scan_number_done:
         // try to parse integers first and fall back to floats
         if (number_type == token_type::value_unsigned)
         {
-            const auto x = std::strtoull(token_buffer.data(), &endptr, 10);
+            const auto x = strtoull(token_buffer.data(), &endptr, 10);
 
             // we checked the number format before
             JSON_ASSERT(endptr == token_buffer.data() + token_buffer.size());
@@ -7886,7 +7886,7 @@ scan_number_done:
         }
         else if (number_type == token_type::value_integer)
         {
-            const auto x = std::strtoll(token_buffer.data(), &endptr, 10);
+            const auto x = strtoll(token_buffer.data(), &endptr, 10);
 
             // we checked the number format before
             JSON_ASSERT(endptr == token_buffer.data() + token_buffer.size());
@@ -8075,7 +8075,7 @@ scan_number_done:
             {
                 // escape control characters
                 std::array<char, 9> cs{{}};
-                (std::snprintf)(cs.data(), cs.size(), "<U+%.4X>", static_cast<unsigned char>(c)); // NOLINT(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
+                (snprintf)(cs.data(), cs.size(), "<U+%.4X>", static_cast<unsigned char>(c)); // NOLINT(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
                 result += cs.data();
             }
             else
@@ -8604,7 +8604,7 @@ class binary_reader
         if (JSON_HEDLEY_UNLIKELY(len < 1))
         {
             auto last_token = get_token_string();
-            return sax->parse_error(chars_read, last_token, parse_error::create(112, chars_read, exception_message(input_format_t::bson, "string length must be at least 1, is " + std::to_string(len), "string"), BasicJsonType()));
+            return sax->parse_error(chars_read, last_token, parse_error::create(112, chars_read, exception_message(input_format_t::bson, "string length must be at least 1, is " + TO_STRING(len), "string"), BasicJsonType()));
         }
 
         return get_string(input_format_t::bson, len - static_cast<NumberType>(1), result) && get() != std::char_traits<char_type>::eof();
@@ -8625,7 +8625,7 @@ class binary_reader
         if (JSON_HEDLEY_UNLIKELY(len < 0))
         {
             auto last_token = get_token_string();
-            return sax->parse_error(chars_read, last_token, parse_error::create(112, chars_read, exception_message(input_format_t::bson, "byte array length cannot be negative, is " + std::to_string(len), "binary"), BasicJsonType()));
+            return sax->parse_error(chars_read, last_token, parse_error::create(112, chars_read, exception_message(input_format_t::bson, "byte array length cannot be negative, is " + TO_STRING(len), "binary"), BasicJsonType()));
         }
 
         // All BSON binary values have a subtype
@@ -8706,7 +8706,7 @@ class binary_reader
             default: // anything else not supported (yet)
             {
                 std::array<char, 3> cr{{}};
-                (std::snprintf)(cr.data(), cr.size(), "%.2hhX", static_cast<unsigned char>(element_type)); // NOLINT(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
+                (snprintf)(cr.data(), cr.size(), "%.2hhX", static_cast<unsigned char>(element_type)); // NOLINT(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
                 return sax->parse_error(element_type_parse_position, std::string(cr.data()), parse_error::create(114, element_type_parse_position, "Unsupported BSON record type 0x" + std::string(cr.data()), BasicJsonType()));
             }
         }
@@ -10850,7 +10850,7 @@ class binary_reader
     std::string get_token_string() const
     {
         std::array<char, 3> cr{{}};
-        (std::snprintf)(cr.data(), cr.size(), "%.2hhX", static_cast<unsigned char>(current)); // NOLINT(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
+        (snprintf)(cr.data(), cr.size(), "%.2hhX", static_cast<unsigned char>(current)); // NOLINT(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
         return std::string{cr.data()};
     }
 
@@ -12528,10 +12528,10 @@ class json_pointer
     }
 
     /// @copydoc to_string()
-    operator std::string() const
-    {
-        return to_string();
-    }
+	operator std::string() const
+	{
+		return to_string();
+	}
 
     /*!
     @brief append another JSON pointer at the end of this JSON pointer
@@ -12597,7 +12597,7 @@ class json_pointer
     */
     json_pointer& operator/=(std::size_t array_idx)
     {
-        return *this /= std::to_string(array_idx);
+        return *this /= TO_STRING(array_idx);
     }
 
     /*!
@@ -12802,19 +12802,12 @@ class json_pointer
             JSON_THROW(detail::parse_error::create(109, 0, "array index '" + s + "' is not a number", BasicJsonType()));
         }
 
-        std::size_t processed_chars = 0;
         unsigned long long res = 0;  // NOLINT(runtime/int)
         JSON_TRY
         {
-            res = std::stoull(s, &processed_chars);
+			res = atoll(s.c_str());
         }
         JSON_CATCH(std::out_of_range&)
-        {
-            JSON_THROW(detail::out_of_range::create(404, "unresolved reference token '" + s + "'", BasicJsonType()));
-        }
-
-        // check if the string was completely read
-        if (JSON_HEDLEY_UNLIKELY(processed_chars != s.size()))
         {
             JSON_THROW(detail::out_of_range::create(404, "unresolved reference token '" + s + "'", BasicJsonType()));
         }
@@ -13016,7 +13009,7 @@ class json_pointer
                     {
                         // "-" always fails the range check
                         JSON_THROW(detail::out_of_range::create(402,
-                                                                "array index '-' (" + std::to_string(ptr->m_value.array->size()) +
+                                                                "array index '-' (" + TO_STRING(ptr->m_value.array->size()) +
                                                                 ") is out of range", *ptr));
                     }
 
@@ -13072,7 +13065,7 @@ class json_pointer
                     if (JSON_HEDLEY_UNLIKELY(reference_token == "-"))
                     {
                         // "-" cannot be used for const access
-                        JSON_THROW(detail::out_of_range::create(402, "array index '-' (" + std::to_string(ptr->m_value.array->size()) + ") is out of range", *ptr));
+                        JSON_THROW(detail::out_of_range::create(402, "array index '-' (" + TO_STRING(ptr->m_value.array->size()) + ") is out of range", *ptr));
                     }
 
                     // use unchecked array access
@@ -13121,7 +13114,7 @@ class json_pointer
                     {
                         // "-" always fails the range check
                         JSON_THROW(detail::out_of_range::create(402,
-                                                                "array index '-' (" + std::to_string(ptr->m_value.array->size()) +
+                                                                "array index '-' (" + TO_STRING(ptr->m_value.array->size()) +
                                                                 ") is out of range", *ptr));
                     }
 
@@ -13324,7 +13317,7 @@ class json_pointer
                     // iterate array and use index as reference string
                     for (std::size_t i = 0; i < value.m_value.array->size(); ++i)
                     {
-                        flatten(reference_string + "/" + std::to_string(i),
+                        flatten(reference_string + "/" + TO_STRING(i),
                                 value.m_value.array->operator[](i), result);
                     }
                 }
@@ -14604,7 +14597,7 @@ class binary_writer
         const auto it = name.find(static_cast<typename string_t::value_type>(0));
         if (JSON_HEDLEY_UNLIKELY(it != BasicJsonType::string_t::npos))
         {
-            JSON_THROW(out_of_range::create(409, "BSON key cannot contain code point U+0000 (at byte " + std::to_string(it) + ")", j));
+            JSON_THROW(out_of_range::create(409, "BSON key cannot contain code point U+0000 (at byte " + TO_STRING(it) + ")", j));
             static_cast<void>(j);
         }
 
@@ -14729,7 +14722,7 @@ class binary_writer
         }
         else
         {
-            JSON_THROW(out_of_range::create(407, "integer number " + std::to_string(j.m_value.number_unsigned) + " cannot be represented by BSON as it does not fit int64", j));
+            JSON_THROW(out_of_range::create(407, "integer number " + TO_STRING(j.m_value.number_unsigned) + " cannot be represented by BSON as it does not fit int64", j));
         }
     }
 
@@ -14752,7 +14745,7 @@ class binary_writer
 
         const std::size_t embedded_document_size = std::accumulate(std::begin(value), std::end(value), std::size_t(0), [&array_index](std::size_t result, const typename BasicJsonType::array_t::value_type & el)
         {
-            return result + calc_bson_element_size(std::to_string(array_index++), el);
+            return result + calc_bson_element_size(TO_STRING(array_index++), el);
         });
 
         return sizeof(std::int32_t) + embedded_document_size + 1ul;
@@ -14779,7 +14772,7 @@ class binary_writer
 
         for (const auto& el : value)
         {
-            write_bson_element(std::to_string(array_index++), el);
+            write_bson_element(TO_STRING(array_index++), el);
         }
 
         oa->write_character(to_char_type(0x00));
@@ -15308,7 +15301,9 @@ class binary_writer
 
 #include <algorithm> // reverse, remove, fill, find, none_of
 #include <array> // array
+#ifdef ENABLE_LOCALES
 #include <clocale> // localeconv, lconv
+#endif
 #include <cmath> // labs, isfinite, isnan, signbit
 #include <cstddef> // size_t, ptrdiff_t
 #include <cstdint> // uint8_t
@@ -16482,9 +16477,13 @@ class serializer
     serializer(output_adapter_t<char> s, const char ichar,
                error_handler_t error_handler_ = error_handler_t::strict)
         : o(std::move(s))
-        , loc(std::localeconv())
-        , thousands_sep(loc->thousands_sep == nullptr ? '\0' : std::char_traits<char>::to_char_type(* (loc->thousands_sep)))
-        , decimal_point(loc->decimal_point == nullptr ? '\0' : std::char_traits<char>::to_char_type(* (loc->decimal_point)))
+#ifdef ENABLE_LOCALES
+		, loc(std::localeconv())
+#endif
+		, thousands_sep('\0')
+		, decimal_point('\0')
+		/*, thousands_sep(loc->thousands_sep == nullptr ? '\0' : std::char_traits<char>::to_char_type(* (loc->thousands_sep)))
+		, decimal_point(loc->decimal_point == nullptr ? '\0' : std::char_traits<char>::to_char_type(* (loc->decimal_point)))*/
         , indent_char(ichar)
         , indent_string(512, indent_char)
         , error_handler(error_handler_)
@@ -16881,14 +16880,14 @@ class serializer
                                 if (codepoint <= 0xFFFF)
                                 {
                                     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
-                                    (std::snprintf)(string_buffer.data() + bytes, 7, "\\u%04x",
+                                    (snprintf)(string_buffer.data() + bytes, 7, "\\u%04x",
                                                     static_cast<std::uint16_t>(codepoint));
                                     bytes += 6;
                                 }
                                 else
                                 {
                                     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
-                                    (std::snprintf)(string_buffer.data() + bytes, 13, "\\u%04x\\u%04x",
+                                    (snprintf)(string_buffer.data() + bytes, 13, "\\u%04x\\u%04x",
                                                     static_cast<std::uint16_t>(0xD7C0u + (codepoint >> 10u)),
                                                     static_cast<std::uint16_t>(0xDC00u + (codepoint & 0x3FFu)));
                                     bytes += 12;
@@ -16927,7 +16926,7 @@ class serializer
                         {
                             std::stringstream ss;
                             ss << std::uppercase << std::setfill('0') << std::setw(2) << std::hex << (byte | 0);
-                            JSON_THROW(type_error::create(316, "invalid UTF-8 byte at index " + std::to_string(i) + ": 0x" + ss.str(), BasicJsonType()));
+                            JSON_THROW(type_error::create(316, "invalid UTF-8 byte at index " + TO_STRING(i) + ": 0x" + ss.str(), BasicJsonType()));
                         }
 
                         case error_handler_t::ignore:
@@ -17225,7 +17224,7 @@ class serializer
 
         // the actual conversion
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
-        std::ptrdiff_t len = (std::snprintf)(number_buffer.data(), number_buffer.size(), "%.*g", d, x);
+        std::ptrdiff_t len = (snprintf)(number_buffer.data(), number_buffer.size(), "%.*g", d, x);
 
         // negative value indicates an error
         JSON_ASSERT(len > 0);
@@ -17359,7 +17358,9 @@ class serializer
     std::array<char, 64> number_buffer{{}};
 
     /// the locale
+#ifdef ENABLE_LOCALES
     const std::lconv* loc = nullptr;
+#endif
     /// the locale's thousand separator character
     const char thousands_sep = '\0';
     /// the locale's decimal point character
@@ -17899,9 +17900,9 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
         result["name"] = "JSON for Modern C++";
         result["url"] = "https://github.com/nlohmann/json";
         result["version"]["string"] =
-            std::to_string(NLOHMANN_JSON_VERSION_MAJOR) + "." +
-            std::to_string(NLOHMANN_JSON_VERSION_MINOR) + "." +
-            std::to_string(NLOHMANN_JSON_VERSION_PATCH);
+            TO_STRING(NLOHMANN_JSON_VERSION_MAJOR) + "." +
+            TO_STRING(NLOHMANN_JSON_VERSION_MINOR) + "." +
+            TO_STRING(NLOHMANN_JSON_VERSION_PATCH);
         result["version"]["major"] = NLOHMANN_JSON_VERSION_MAJOR;
         result["version"]["minor"] = NLOHMANN_JSON_VERSION_MINOR;
         result["version"]["patch"] = NLOHMANN_JSON_VERSION_PATCH;
@@ -17923,7 +17924,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
 #elif defined(__clang__)
         result["compiler"] = {{"family", "clang"}, {"version", __clang_version__}};
 #elif defined(__GNUC__) || defined(__GNUG__)
-        result["compiler"] = {{"family", "gcc"}, {"version", std::to_string(__GNUC__) + "." + std::to_string(__GNUC_MINOR__) + "." + std::to_string(__GNUC_PATCHLEVEL__)}};
+        result["compiler"] = {{"family", "gcc"}, {"version", TO_STRING(__GNUC__) + "." + TO_STRING(__GNUC_MINOR__) + "." + TO_STRING(__GNUC_PATCHLEVEL__)}};
 #elif defined(__HP_cc) || defined(__HP_aCC)
         result["compiler"] = "hp"
 #elif defined(__IBMCPP__)
@@ -17939,7 +17940,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
 #endif
 
 #ifdef __cplusplus
-        result["compiler"]["c++"] = std::to_string(__cplusplus);
+        result["compiler"]["c++"] = TO_STRING(__cplusplus);
 #else
         result["compiler"]["c++"] = "unknown";
 #endif
@@ -21005,7 +21006,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
             JSON_CATCH (std::out_of_range&)
             {
                 // create better exception explanation
-                JSON_THROW(out_of_range::create(401, "array index " + std::to_string(idx) + " is out of range", *this));
+                JSON_THROW(out_of_range::create(401, "array index " + TO_STRING(idx) + " is out of range", *this));
             }
         }
         else
@@ -21052,7 +21053,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
             JSON_CATCH (std::out_of_range&)
             {
                 // create better exception explanation
-                JSON_THROW(out_of_range::create(401, "array index " + std::to_string(idx) + " is out of range", *this));
+                JSON_THROW(out_of_range::create(401, "array index " + TO_STRING(idx) + " is out of range", *this));
             }
         }
         else
@@ -21987,7 +21988,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
         {
             if (JSON_HEDLEY_UNLIKELY(idx >= size()))
             {
-                JSON_THROW(out_of_range::create(401, "array index " + std::to_string(idx) + " is out of range", *this));
+                JSON_THROW(out_of_range::create(401, "array index " + TO_STRING(idx) + " is out of range", *this));
             }
 
             m_value.array->erase(m_value.array->begin() + static_cast<difference_type>(idx));
@@ -26021,7 +26022,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
                         if (JSON_HEDLEY_UNLIKELY(idx > parent.size()))
                         {
                             // avoid undefined behavior
-                            JSON_THROW(out_of_range::create(401, "array index " + std::to_string(idx) + " is out of range", parent));
+                            JSON_THROW(out_of_range::create(401, "array index " + TO_STRING(idx) + " is out of range", parent));
                         }
 
                         // default case: insert add offset
@@ -26275,7 +26276,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
                 while (i < source.size() && i < target.size())
                 {
                     // recursive call to compare array values at index i
-                    auto temp_diff = diff(source[i], target[i], path + "/" + std::to_string(i));
+                    auto temp_diff = diff(source[i], target[i], path + "/" + TO_STRING(i));
                     result.insert(result.end(), temp_diff.begin(), temp_diff.end());
                     ++i;
                 }
@@ -26292,7 +26293,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
                     result.insert(result.begin() + end_index, object(
                     {
                         {"op", "remove"},
-                        {"path", path + "/" + std::to_string(i)}
+                        {"path", path + "/" + TO_STRING(i)}
                     }));
                     ++i;
                 }

@@ -103,7 +103,7 @@ public:
         hints.ai_flags = AI_NUMERICSERV; // port passed as as numeric value
         hints.ai_protocol = 0;
 
-        auto port_str = std::to_string(port);
+        auto port_str = TO_STRING(port);
         struct addrinfo *addrinfo_result;
         auto rv = ::getaddrinfo(host.c_str(), port_str.c_str(), &hints, &addrinfo_result);
         int last_error = 0;

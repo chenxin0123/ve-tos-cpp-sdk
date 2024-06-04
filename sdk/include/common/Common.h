@@ -3,6 +3,25 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <stdio.h>
+#include <stdlib.h>
+
+inline std::string to_string_custom(long value) {
+	char buffer[64];
+	snprintf(buffer, sizeof(buffer), "%ld", value);
+	return std::string(buffer);
+}
+
+#if defined(__ANDROID__) || defined(__APPLE__)
+#define TO_STRING(val) to_string_custom(val)
+#else
+#define TO_STRING(val) std::to_string(val)
+#endif
+
+#if defined(WIN32)
+#else
+	#define DISABLE_SPDLOG
+#endif
 
 namespace VolcengineTos {
 namespace http {
