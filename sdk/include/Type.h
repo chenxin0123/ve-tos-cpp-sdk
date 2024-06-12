@@ -211,7 +211,7 @@ struct DataTransferStatus {
     DataTransferType type_;
     void* userData_;
 };
-using DataTransferStatusChange = std::function<void(std::shared_ptr<DataTransferStatus>)>;
+using DataTransferStatusChange = std::function<int(std::shared_ptr<DataTransferStatus>)>;
 struct DataTransferListener {
     DataTransferStatusChange dataTransferStatusChange_;
     void* userData_;
@@ -228,7 +228,7 @@ public:
     bool startTrans_ = false;
     void* userData;
 };
-static void UploadDownloadFileProcessCallback(const std::shared_ptr<DataTransferStatus>& dataTransferStatus) {
+static int UploadDownloadFileProcessCallback(const std::shared_ptr<DataTransferStatus>& dataTransferStatus) {
     auto processStat = (UploadDownloadFileProcessStat*)dataTransferStatus->userData_;
     int64_t consumedBytes = dataTransferStatus->consumedBytes_;
     int64_t totalBytes = dataTransferStatus->totalBytes_;
@@ -257,6 +257,7 @@ static void UploadDownloadFileProcessCallback(const std::shared_ptr<DataTransfer
         auto data = std::make_shared<DataTransferStatus>(status);
         process(data);
     }
+    return 0;
 }
 
 // 限流limiter

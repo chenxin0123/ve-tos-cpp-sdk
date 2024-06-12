@@ -29,11 +29,12 @@ struct ResourceManager {
     //    std::shared_ptr<DataConsumeCallBack> callBack;
 };
 
-static void processHandler(const DataTransferStatusChange& handler, int64_t consumedBytes, int64_t totalBytes,
+static int processHandler(const DataTransferStatusChange& handler, int64_t consumedBytes, int64_t totalBytes,
                            int64_t rwOnceBytes, DataTransferType type, void* userData) {
     DataTransferStatus dataTransferStatus{consumedBytes, totalBytes, rwOnceBytes, type, userData};
     auto data = std::make_shared<DataTransferStatus>(dataTransferStatus);
-    handler(data);
+    int ret = handler(data);
+	return ret;
 }
 
 static size_t sendBody(char* ptr, size_t size, size_t nmemb, void* data) {
@@ -41,8 +42,9 @@ static size_t sendBody(char* ptr, size_t size, size_t nmemb, void* data) {
 
     if (resourceMan == nullptr || resourceMan->httpReq == nullptr) {
         resourceMan->dataTransferType = 4;
-        processHandler(resourceMan->progress, resourceMan->send, resourceMan->total, 0, resourceMan->dataTransferType,
+        int retCode = processHandler(resourceMan->progress, resourceMan->send, resourceMan->total, 0, resourceMan->dataTransferType,
                        resourceMan->userData);
+        if (retCode != 0) { return retCode;}
         return 0;
     }
     std::shared_ptr<std::iostream>& content = resourceMan->httpReq->Body();
@@ -59,8 +61,9 @@ static size_t sendBody(char* ptr, size_t size, size_t nmemb, void* data) {
 
     // 第一次回调
     if (resourceMan->progress && resourceMan->dataTransferType == 1) {
-        processHandler(resourceMan->progress, resourceMan->send, resourceMan->total, 0, resourceMan->dataTransferType,
+        int retCode = processHandler(resourceMan->progress, resourceMan->send, resourceMan->total, 0, resourceMan->dataTransferType,
                        resourceMan->userData);
+		if (retCode != 0) { return retCode;}
         resourceMan->dataTransferType = 2;
     }
 
@@ -83,8 +86,9 @@ static size_t sendBody(char* ptr, size_t size, size_t nmemb, void* data) {
         if (resourceMan->total == resourceMan->send) {
             resourceMan->dataTransferType = 3;
         }
-        processHandler(resourceMan->progress, resourceMan->send, resourceMan->total, got, resourceMan->dataTransferType,
+        int retCode = processHandler(resourceMan->progress, resourceMan->send, resourceMan->total, got, resourceMan->dataTransferType,
                        resourceMan->userData);
+		if (retCode != 0) { return retCode; }
     }
 
     if (resourceMan->enableCrc64) {
